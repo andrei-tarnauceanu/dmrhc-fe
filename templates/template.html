@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>RCC</title>
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #floating-panel {
+        position: absolute;
+        top: 10px;
+        left: 25%;
+        z-index: 5;
+        background-color: #fff;
+        padding: 5px;
+        border: 1px solid #999;
+        text-align: center;
+        font-family: 'Roboto','sans-serif';
+        line-height: 30px;
+        padding-left: 10px;
+      }
+      #floating-panel {
+        position: absolute;
+        top: 5px;
+        left: 50%;
+        margin-left: -180px;
+        width: 350px;
+        z-index: 5;
+        background-color: #fff;
+        padding: 5px;
+        border: 1px solid #999;
+      }
+      #latlng {
+        width: 225px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      let map;
+      let marker;
+      let position = {lat: {{ latitude }}, lng: {{ longitude }} };
+      let rssi = {{ rssi }};
+      function getCoors(){
+        var request = new XMLHttpRequest()
+        request.open('GET', '/markers', true);
+        request.onload = function () {
+          // Begin accessing JSON data here
+          let data = JSON.parse(this.response);
+          if (request.status >= 200 && request.status < 400) {
+              position = { lat: data.gps_location.latitude, lng: data.gps_location.longitude };
+              rssi = data.rssi;
+          }
+        }
+        request.send();
+      }
+      function SetMarker() {
+        //Remove previous Marker.
+        if (marker != null) {
+            marker.setMap(null);
+        }
+
+        //Set Marker on Map
+          getCoors();
+          console.log({ "lat": position.lat, "lng": position.lng});
+
+          marker = new google.maps.Circle({
+              strokeColor: RssiToHex(rssi),
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+              fillColor: RssiToHex(rssi),
+              fillOpacity: 0.35,
+              center: position,
+              map: map,
+              radius: 2
+          });
+    };
+      function RssiToHex(rssi) {
+          if (rssi > -59) {
+              return "#80ff00";
+          }
+          if (rssi > -81) {
+              return "#bfff00";
+          }
+          if (rssi > -101) {
+              return "#ffff00";
+          }
+          if (rssi > -107) {
+              return "#ffbf00";
+          }
+          if (rssi > -111) {
+              return "#ff8000";
+          }
+          if (rssi > -160) {
+              return "#ff4000";
+          }
+
+
+      }
+      function initMap(){
+        map = new google.maps.Map(document.getElementById('map'), {
+          zoom: {{ zoom }},
+          center: position,
+        });
+        marker = new google.maps.Circle({
+            strokeColor: RssiToHex(rssi),
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: RssiToHex(rssi),
+            fillOpacity: 0.35,
+            center: position,
+            map: map,
+            radius:2
+        });
+      setInterval(function(){ SetMarker() }, 30000);
+      }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBOV_yr7bQbPGRE--hYgX5rhIhbr34AEdQ&callback=initMap">
+    </script>
+  </body>
+</html>
