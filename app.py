@@ -63,4 +63,4 @@ def get_records(start=datetime.utcnow() - timedelta(minutes=5), end=datetime.utc
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=8080)
