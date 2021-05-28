@@ -14,16 +14,10 @@ mongo_uri = f"mongodb+srv://{MONGO_USER}:{MONGO_PASS}@cluster0.rwier.mongodb.net
 
 @app.route('/')
 def root():
-    records = get_records(single_record=True)
-    rssi = records['rssi']
-    gps_location = records['gps_location']
     with open('templates/template.html', 'r') as f:
         text = f.read()
     template = Template(text)
-    return template.render(latitude=gps_location.get("latitude"),
-                           longitude=gps_location.get("longitude"),
-                           rssi=rssi,
-                           zoom=19)
+    return template.render()
 
 
 @app.route('/markers')
@@ -43,21 +37,24 @@ def get_markers():
 def get_records(start=datetime.utcnow() - timedelta(minutes=5), end=datetime.utcnow(), single_record=False):
     client = MongoClient(mongo_uri)
     db = client.DMRHC
-    query = {
-        "received_at":
-                 {
-                     "$gte": f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}",
-                     "$lt":  f"{end.strftime('%Y-%m-%dT%H:%M:%SZ')}"
-                 }
-            }
+    query = {"received_at": {}}
+    if start:
+        start = start.strftime('%Y-%m-%dT%H:%M:%SZ') if hasattr(start, 'strftime') else start.replace('"', '')
+        query["received_at"]["$gte"] = start
+    if end:
+        end = end.strftime('%Y-%m-%dT%H:%M:%SZ') if hasattr(end, 'strftime') else end.replace('"', '')
+        query["received_at"]["$lt"] = end
+    print(query)
     cursor = db.pytrack.find(query)
     records = []
     for x in sorted(cursor, key=lambda k: k['received_at'], reverse=True):
         if x['uplink_message']['decoded_payload'].get("gps_1", None) and single_record:
-            return {"time": x['received_at'], "rssi": x['uplink_message']['rx_metadata'][0]['rssi'], "gps_location": x['uplink_message']['decoded_payload'].get("gps_1", None)}
-        records.append({"time": x['received_at'], "rssi": x['uplink_message']['rx_metadata'][0]['rssi'], "gps_location": x['uplink_message']['decoded_payload'].get("gps_1", None)})
+            return [{"time": x['received_at'], "rssi": x['uplink_message']['rx_metadata'][0]['rssi'], "gps_location": x['uplink_message']['decoded_payload'].get("gps_1", None)}]
+        if x['uplink_message']['decoded_payload'].get("gps_1", None):
+            # return only records with gps data
+            records.append({"time": x['received_at'], "rssi": x['uplink_message']['rx_metadata'][0]['rssi'], "gps_location": x['uplink_message']['decoded_payload'].get("gps_1", None)})
     if single_record and len(records) == 0:
-        return {"time": 0, "rssi": 0, "gps_location": {"latitude": 0, "longitude": 0}}
+        return [{"time": 0, "rssi": 0, "gps_location": {"latitude": 0, "longitude": 0}}]
     else:
         return records
 
